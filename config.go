@@ -25,6 +25,7 @@ type Config struct {
 	ValidateJsonRawMessage        bool
 	ObjectFieldMustBeSimpleString bool
 	CaseSensitive                 bool
+	ConvertStringTo64             bool
 }
 
 // API the public interface of this package.
@@ -65,6 +66,14 @@ var ConfigFastest = Config{
 	ObjectFieldMustBeSimpleString: true, // do not unescape object field
 }.Froze()
 
+// ConfigConvertStringTo64 convert string to int64/uint64
+var ConfigConvertStringTo64 = Config{
+	EscapeHTML:             true,
+	SortMapKeys:            true,
+	ValidateJsonRawMessage: true,
+	ConvertStringTo64:      true,
+}.Froze()
+
 type frozenConfig struct {
 	configBeforeFrozen            Config
 	sortMapKeys                   bool
@@ -80,6 +89,7 @@ type frozenConfig struct {
 	streamPool                    *sync.Pool
 	iteratorPool                  *sync.Pool
 	caseSensitive                 bool
+	ConvertStringTo64             bool
 }
 
 func (cfg *frozenConfig) initCache() {
@@ -134,6 +144,7 @@ func (cfg Config) Froze() API {
 		onlyTaggedField:               cfg.OnlyTaggedField,
 		disallowUnknownFields:         cfg.DisallowUnknownFields,
 		caseSensitive:                 cfg.CaseSensitive,
+		ConvertStringTo64:             cfg.ConvertStringTo64,
 	}
 	api.streamPool = &sync.Pool{
 		New: func() interface{} {

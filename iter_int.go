@@ -220,6 +220,10 @@ func (iter *Iterator) readUint32(c byte) (ret uint32) {
 // ReadInt64 read int64
 func (iter *Iterator) ReadInt64() (ret int64) {
 	c := iter.nextToken()
+	// if convert string to number
+	if iter.cfg.ConvertStringTo64 && c == '"' {
+		c = iter.nextToken()
+	}
 	if c == '-' {
 		val := iter.readUint64(iter.readByte())
 		if val > math.MaxInt64+1 {
@@ -238,13 +242,18 @@ func (iter *Iterator) ReadInt64() (ret int64) {
 
 // ReadUint64 read uint64
 func (iter *Iterator) ReadUint64() uint64 {
-	return iter.readUint64(iter.nextToken())
+	c := iter.nextToken()
+	// if convert string to number
+	if iter.cfg.ConvertStringTo64 && c == '"' {
+		c = iter.nextToken()
+	}
+	return iter.readUint64(c)
 }
 
 func (iter *Iterator) readUint64(c byte) (ret uint64) {
 	ind := intDigits[c]
 	if ind == 0 {
-		iter.assertInteger()
+		iter.assertInteger64()
 		return 0 // single zero
 	}
 	if ind == invalidCharForNumber {
@@ -257,14 +266,14 @@ func (iter *Iterator) readUint64(c byte) (ret uint64) {
 		ind2 := intDigits[iter.buf[i]]
 		if ind2 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value
 		}
 		i++
 		ind3 := intDigits[iter.buf[i]]
 		if ind3 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*10 + uint64(ind2)
 		}
 		//iter.head = i + 1
@@ -273,35 +282,35 @@ func (iter *Iterator) readUint64(c byte) (ret uint64) {
 		ind4 := intDigits[iter.buf[i]]
 		if ind4 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*100 + uint64(ind2)*10 + uint64(ind3)
 		}
 		i++
 		ind5 := intDigits[iter.buf[i]]
 		if ind5 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*1000 + uint64(ind2)*100 + uint64(ind3)*10 + uint64(ind4)
 		}
 		i++
 		ind6 := intDigits[iter.buf[i]]
 		if ind6 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*10000 + uint64(ind2)*1000 + uint64(ind3)*100 + uint64(ind4)*10 + uint64(ind5)
 		}
 		i++
 		ind7 := intDigits[iter.buf[i]]
 		if ind7 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*100000 + uint64(ind2)*10000 + uint64(ind3)*1000 + uint64(ind4)*100 + uint64(ind5)*10 + uint64(ind6)
 		}
 		i++
 		ind8 := intDigits[iter.buf[i]]
 		if ind8 == invalidCharForNumber {
 			iter.head = i
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value*1000000 + uint64(ind2)*100000 + uint64(ind3)*10000 + uint64(ind4)*1000 + uint64(ind5)*100 + uint64(ind6)*10 + uint64(ind7)
 		}
 		i++
@@ -309,7 +318,7 @@ func (iter *Iterator) readUint64(c byte) (ret uint64) {
 		value = value*10000000 + uint64(ind2)*1000000 + uint64(ind3)*100000 + uint64(ind4)*10000 + uint64(ind5)*1000 + uint64(ind6)*100 + uint64(ind7)*10 + uint64(ind8)
 		iter.head = i
 		if ind9 == invalidCharForNumber {
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value
 		}
 	}
@@ -318,7 +327,7 @@ func (iter *Iterator) readUint64(c byte) (ret uint64) {
 			ind = intDigits[iter.buf[i]]
 			if ind == invalidCharForNumber {
 				iter.head = i
-				iter.assertInteger()
+				iter.assertInteger64()
 				return value
 			}
 			if value > uint64SafeToMultiple10 {
@@ -333,13 +342,23 @@ func (iter *Iterator) readUint64(c byte) (ret uint64) {
 			value = (value << 3) + (value << 1) + uint64(ind)
 		}
 		if !iter.loadMore() {
-			iter.assertInteger()
+			iter.assertInteger64()
 			return value
 		}
 	}
 }
 
 func (iter *Iterator) assertInteger() {
+	if iter.head < iter.tail && iter.buf[iter.head] == '.' {
+		iter.ReportError("assertInteger", "can not decode float as int")
+	}
+}
+
+func (iter *Iterator) assertInteger64() {
+	if iter.head < iter.tail && iter.cfg.ConvertStringTo64 && iter.buf[iter.head] == '"' {
+		iter.head++
+		iter.skipWhitespacesWithoutLoadMore()
+	}
 	if iter.head < iter.tail && iter.buf[iter.head] == '.' {
 		iter.ReportError("assertInteger", "can not decode float as int")
 	}
