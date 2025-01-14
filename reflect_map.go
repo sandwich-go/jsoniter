@@ -203,6 +203,12 @@ type numericMapKeyDecoder struct {
 }
 
 func (decoder *numericMapKeyDecoder) Decode(ptr unsafe.Pointer, iter *Iterator) {
+	if iter.cfg.ConvertStringTo64 {
+		iter.cfg.ConvertStringTo64 = false
+		defer func() {
+			iter.cfg.ConvertStringTo64 = true
+		}()
+	}
 	c := iter.nextToken()
 	if c != '"' {
 		iter.ReportError("ReadMapCB", `expect ", but found `+string([]byte{c}))
